@@ -1888,7 +1888,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">â€
         <canvas id="acPole" width="480" height="280"></canvas>
       </div>
       <div class="canvas-card">
-        <div class="cc-title">Flight paths: nonlinear (blue) vs linearized (red dashed)</div>
+        <div class="cc-title">Flight paths: nonlinear (blue) vs linearized (red dashed), gap shaded</div>
         <canvas id="acTrace" width="480" height="280"></canvas>
       </div>
       <div class="canvas-card">
@@ -1903,6 +1903,15 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">â€
       <span><i class="dot" style="background:#2a9d64;"></i> Green pole: stable</span>
     </div>
     <div class="readout" id="acReadout"></div>
+    <p class="hint">The flight-path plot is autoscaled to the whole altitude excursion, which for a fast
+      trim speed is a couple of kilometres. A linearization error of a few tens of metres is then well under
+      one percent of the vertical range, so the two curves sit on top of one another even though the error
+      plot beside them shows a real and growing gap. What decides the size of that error is not how large the
+      sliders are but the relative perturbation, the ratio <span class="tex" data-latex="\Delta v(0)/v_c"></span>
+      now printed in the readout. Raising the trim speed makes that ratio smaller and the linearization
+      better. To see the two paths visibly part company, pull the trim speed down to its lowest setting and
+      push the speed perturbation to its highest, which drives the ratio to one hundred percent.</p>
+
     <p class="hint">Some of the reasoning below leans on tools this course develops in more depth soon
       (poles, damping ratio, natural frequency). If an answer does not fully click yet, that is fine, it will
       feel much more natural once we get there.</p>
@@ -2563,6 +2572,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">â€
       return {
         A,eig,dt:DT,vc,LD,dv0,steps,
         pathHMax:pathHMax*1.15||1,
+        hSwing:pathHMax,
         pathPMax:pathPMax||1,
         errorMax:errorMax*1.15||1,
         peakAltitudeError:errorMax,
@@ -2644,6 +2654,18 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">â€
         }
         traceCtx.stroke(); traceCtx.setLineDash([]);
       }
+      // Shade the gap between the two paths. The plot is autoscaled to the full
+      // altitude excursion, so a small linearization error is only a couple of
+      // pixels of separation; filling it makes that sliver readable, and it is
+      // exactly the quantity drawn in the error plot beside this one.
+      if(last>0){
+        traceCtx.beginPath();
+        for(let i=0;i<=last;i++){ const p=xyAt(nlTraj[i]); if(i===0) traceCtx.moveTo(p[0],p[1]); else traceCtx.lineTo(p[0],p[1]); }
+        for(let i=last;i>=0;i--){ const p=xyAt(linTraj[i]); traceCtx.lineTo(p[0],p[1]); }
+        traceCtx.closePath();
+        traceCtx.fillStyle='rgba(201,138,31,0.45)';
+        traceCtx.fill();
+      }
       drawPath(nlTraj,'#1e5fa8',false);
       drawPath(linTraj,'#d1495b',true);
 
@@ -2703,11 +2725,13 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">â€
         '<div class="item">' + tex(wnLatex) + '</div>' +
         '<div class="item">' + tex('\\zeta \\approx ' + fmt(zeta,3)) + '</div>' +
         '<div class="item">' + tex('\\Delta v(0) = +' + fmt(info.dv0,0) + '\\text{ m/s}') + '</div>' +
+        '<div class="item">' + tex('\\dfrac{\\Delta v(0)}{v_c} = ' + fmt(100*info.dv0/info.vc,1) + '\\%') + '</div>' +
         '<div class="item">' + tex('t = ' + fmt(idx*info.dt,1) + '\\text{ s}') + '</div>' +
         '<div class="item">' + tex('h_{NL}-h_{lin} = ' + fmt(altitudeError[idx],2) + '\\text{ m}') + '</div>' +
         '<div class="item">' + tex('v_{NL}-v_{lin} = ' + fmt(nlTraj[idx][0]-linTraj[idx][0],2) + '\\text{ m/s}') + '</div>' +
         '<div class="item">' + tex('\\max_{\\text{so far}}|h_{NL}-h_{lin}| \\approx ' + fmt(peakAltitudeError,2) + '\\text{ m}') + '</div>' +
         '<div class="item">' + tex('\\max_{\\text{so far}}|v_{NL}-v_{lin}| \\approx ' + fmt(peakSpeedError,2) + '\\text{ m/s}') + '</div>' +
+        '<div class="item">' + tex('\\dfrac{\\max|h_{NL}-h_{lin}|}{\\max|h|}\\Big|_{\\text{full run}} \\approx ' + fmt(100*info.peakAltitudeError/(info.hSwing||1),2) + '\\%') + '</div>' +
         '<div class="item"><b>Stability</b>: ' + (info.eig.re1 < 0 ? 'stable (damped oscillation)' : 'unstable') + '</div>';
     }
 
